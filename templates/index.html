@@ -550,6 +550,19 @@
       <div class="metrics-snapshot-wrap" id="metricsSnapshotTable"></div>
     </div>
 
+    <!-- Combined Historical + MC Forecast -->
+    <div class="all-metrics-section" id="compMCSection" style="display:none;">
+      <div class="section-title">Historical + Monte Carlo Forecast Comparison</div>
+      <div class="chart-sub" id="compMCSub">Both companies — historical data with MC forecast bands</div>
+      <div class="legend" style="margin-bottom:10px;">
+        <div class="legend-item"><div class="legend-dot" style="background:#ffbc0d;"></div> MCD Historical</div>
+        <div class="legend-item"><div class="legend-line" style="background:#ffbc0d; opacity:0.5;"></div> MCD MC Mean</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#27ae60;"></div> SBUX Historical</div>
+        <div class="legend-item"><div class="legend-line" style="background:#27ae60; opacity:0.5;"></div> SBUX MC Mean</div>
+      </div>
+      <div class="chart-wrap"><canvas id="compMCChart" height="300"></canvas></div>
+    </div>
+
     <!-- Forecast comparison -->
     <div class="all-metrics-section" id="forecastCompareSection" style="display:none;">
       <div class="section-title">Forecast Comparison</div>
@@ -625,7 +638,7 @@
 
   // ---- State ----
   let mainChart, distChart, pathsChart, stdChart;
-  let comparisonChart, comparisonBarChart, compDistChart, compStdChart;
+  let comparisonChart, comparisonBarChart, compMCChart, compDistChart, compStdChart;
   let currentData = null;
 
   // ---- Helpers ----
@@ -769,7 +782,6 @@
   async function showComparison() {
     const panel = document.querySelector('.comparison-panel');
     panel.classList.add('active');
-    document.getElementById('chartsGrid').style.display = 'none';
     document.getElementById('mcPathsRow').style.display = 'none';
     document.getElementById('btnCompare').textContent = 'Refresh Comparison';
     document.getElementById('btnCloseCompare').style.display = '';
@@ -778,10 +790,10 @@
 
   function closeComparison() {
     document.querySelector('.comparison-panel').classList.remove('active');
-    document.getElementById('chartsGrid').style.display = '';
     document.getElementById('mcPathsRow').style.display = '';
     document.getElementById('btnCompare').textContent = 'Compare';
     document.getElementById('btnCloseCompare').style.display = 'none';
+    destroyChart(compMCChart);
     destroyChart(compDistChart);
     destroyChart(compStdChart);
   }
@@ -789,6 +801,7 @@
   function renderComparison(data, forecastA, forecastB) {
     destroyChart(comparisonChart);
     destroyChart(comparisonBarChart);
+    destroyChart(compMCChart);
     destroyChart(compDistChart);
     destroyChart(compStdChart);
 
@@ -1049,6 +1062,121 @@
         <span style="border-left:3px solid var(--green); padding-left:6px;">${labelB} only</span>
       </div>
     `;
+
+    // ── Historical + MC combined chart ────────────────────────────────────
+    if (forecastA && forecastB) {
+      document.getElementById('compMCSection').style.display = 'block';
+      document.getElementById('compMCSub').textContent =
+        `${data.metric} — historical + ${forecastA.n_simulations}-simulation MC forecast`;
+
+      // Build unified time axis
+      const allYears = [...new Set([
+        ...forecastA.historical_years,
+        ...forecastB.historical_years,
+        ...forecastA.future_years,
+        ...forecastB.future_years,
+      ])].sort((a, b) => a - b).map(String);
+
+      const pad = (arr, targetLabels, startYear) => {
+        const startIdx = targetLabels.indexOf(String(startYear));
+        return [...Array(startIdx).fill(null), ...arr,
+          ...Array(targetLabels.length - startIdx - arr.length).fill(null)];
+      };
+
+      const lastHistA = forecastA.historical_values[forecastA.historical_values.length - 1];
+      const lastHistB = forecastB.historical_values[forecastB.historical_values.length - 1];
+      const lastHistYearA = forecastA.historical_years[forecastA.historical_years.length - 1];
+      const lastHistYearB = forecastB.historical_years[forecastB.historical_years.length - 1];
+
+      // Connect last historical point to first forecast point
+      const connMeanA = [lastHistA, ...forecastA.mean];
+      const connP5A   = [lastHistA, ...forecastA.p5];
+      const connP95A  = [lastHistA, ...forecastA.p95];
+      const connMeanB = [lastHistB, ...forecastB.mean];
+      const connP5B   = [lastHistB, ...forecastB.p5];
+      const connP95B  = [lastHistB, ...forecastB.p95];
+      const connYearsA = [lastHistYearA, ...forecastA.future_years].map(String);
+      const connYearsB = [lastHistYearB, ...forecastB.future_years].map(String);
+
+      const posA = allYears.indexOf(String(forecastA.historical_years[0]));
+      const posB = allYears.indexOf(String(forecastB.historical_years[0]));
+      const histDataA = [...Array(posA).fill(null), ...forecastA.historical_values,
+        ...Array(allYears.length - posA - forecastA.historical_years.length).fill(null)];
+      const histDataB = [...Array(posB).fill(null), ...forecastB.historical_values,
+        ...Array(allYears.length - posB - forecastB.historical_years.length).fill(null)];
+
+      const padForecast = (vals, connYears) => {
+        const start = allYears.indexOf(connYears[0]);
+        return [...Array(start).fill(null), ...vals,
+          ...Array(allYears.length - start - vals.length).fill(null)];
+      };
+
+      compMCChart = new Chart(document.getElementById('compMCChart').getContext('2d'), {
+        data: {
+          labels: allYears,
+          datasets: [
+            // MCD CI band
+            { type: 'line', label: 'MCD P95', data: padForecast(connP95A, connYearsA),
+              borderColor: 'transparent', backgroundColor: 'rgba(255,188,13,0.12)',
+              fill: '+1', pointRadius: 0, tension: 0.25, order: 6 },
+            { type: 'line', label: 'MCD P5',  data: padForecast(connP5A, connYearsA),
+              borderColor: 'transparent', backgroundColor: 'rgba(255,188,13,0.12)',
+              fill: false, pointRadius: 0, tension: 0.25, order: 6 },
+            // SBUX CI band
+            { type: 'line', label: 'SBUX P95', data: padForecast(connP95B, connYearsB),
+              borderColor: 'transparent', backgroundColor: 'rgba(39,174,96,0.12)',
+              fill: '+1', pointRadius: 0, tension: 0.25, order: 6 },
+            { type: 'line', label: 'SBUX P5',  data: padForecast(connP5B, connYearsB),
+              borderColor: 'transparent', backgroundColor: 'rgba(39,174,96,0.12)',
+              fill: false, pointRadius: 0, tension: 0.25, order: 6 },
+            // MCD MC Mean
+            { type: 'line', label: `${labelA} MC Mean`, data: padForecast(connMeanA, connYearsA),
+              borderColor: 'rgba(255,188,13,0.65)', borderDash: [5, 4], borderWidth: 2,
+              backgroundColor: 'transparent', pointRadius: 0, tension: 0.25, order: 3 },
+            // SBUX MC Mean
+            { type: 'line', label: `${labelB} MC Mean`, data: padForecast(connMeanB, connYearsB),
+              borderColor: 'rgba(39,174,96,0.65)', borderDash: [5, 4], borderWidth: 2,
+              backgroundColor: 'transparent', pointRadius: 0, tension: 0.25, order: 3 },
+            // MCD Historical
+            { type: 'line', label: labelA, data: histDataA,
+              borderColor: '#ffbc0d', backgroundColor: 'transparent',
+              borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#ffbc0d',
+              tension: 0.2, order: 1 },
+            // SBUX Historical
+            { type: 'line', label: labelB, data: histDataB,
+              borderColor: '#27ae60', backgroundColor: 'transparent',
+              borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#27ae60',
+              tension: 0.2, order: 2 },
+          ],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e1e1e', borderColor: '#3a3a3a', borderWidth: 1,
+              titleColor: '#ffbc0d', bodyColor: '#e0e0e0',
+              filter: item => !['MCD P95','MCD P5','SBUX P95','SBUX P5'].includes(item.dataset.label),
+              callbacks: {
+                label: ctx => {
+                  if (ctx.parsed.y == null) return null;
+                  return ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}B`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { grid: { color: '#252525' }, ticks: { color: '#888', font: { size: 10 } } },
+            y: {
+              grid: { color: '#252525' },
+              ticks: { color: '#888', font: { size: 11 } },
+              title: { display: true, text: data.metric, color: '#666', font: { size: 11 } },
+            },
+          },
+        },
+      });
+    }
 
     // ── Forecast comparison charts ─────────────────────────────────────────
     if (forecastA && forecastB) {
