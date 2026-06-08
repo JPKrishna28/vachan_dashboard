@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>McDonald's Financial Dashboard</title>
+  <title>Financial Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
   <style>
@@ -31,11 +31,34 @@
       justify-content: space-between;
       border-bottom: 3px solid var(--gold);
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      transition: background 0.45s ease, border-color 0.45s ease;
     }
     .header-left { display: flex; align-items: center; gap: 16px; }
-    .logo { font-size: 2.4rem; font-weight: 900; color: var(--gold); letter-spacing: -1px; }
+    .logo {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--gold);
+      letter-spacing: -1px;
+      transition: color 0.45s ease;
+    }
     .header-title { font-size: 1.2rem; font-weight: 600; color: #fff; }
     .header-sub { font-size: 0.78rem; color: rgba(255,255,255,0.7); }
+
+    /* SBUX theme overrides */
+    body.theme-sbux {
+      --gold: #00a862;
+    }
+    body.theme-sbux .header {
+      background: linear-gradient(135deg, #1e3932 0%, #00704a 100%);
+      border-bottom-color: #00a862;
+    }
+    body.theme-sbux .spinner {
+      border-top-color: #00a862;
+    }
+    body.theme-sbux .ctrl-select:hover,
+    body.theme-sbux .ctrl-input:hover {
+      border-color: #00a862;
+    }
 
     /* Main layout */
     .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
@@ -217,7 +240,7 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 20px;
+      padding: 24px;
       margin-bottom: 20px;
       display: none;
     }
@@ -228,81 +251,120 @@
       gap: 20px;
       align-items: flex-end;
       flex-wrap: wrap;
-      margin-bottom: 16px;
+      padding-bottom: 18px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
     }
     .comparison-grid {
       display: grid;
-      grid-template-columns: minmax(280px, 360px) 1fr;
-      gap: 18px;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
       align-items: start;
     }
     .comparison-summary {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .compare-card {
-      background: #262626;
+      background: #1e1e1e;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px;
+      border-radius: 8px;
+      padding: 12px 14px;
     }
     .compare-card-label {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
+      letter-spacing: 0.6px;
+      margin-bottom: 5px;
     }
     .compare-card-value {
-      font-size: 1.2rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: #fff;
       margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .compare-card-sub {
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       color: var(--muted);
+      line-height: 1.4;
     }
-    .comparison-table { margin-top: 16px; }
+    .comparison-table {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
 
     /* All-metrics snapshot */
-    .all-metrics-section { margin-top: 24px; }
-    .all-metrics-section .section-title {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 10px;
+    .all-metrics-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
     }
-    .all-metrics-section .chart-sub { margin-bottom: 14px; }
+    .all-metrics-section .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ccc;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .all-metrics-section > .chart-sub { margin-bottom: 18px; }
     .metrics-snapshot-wrap { overflow-x: auto; }
     .metrics-snapshot-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .metrics-snapshot-wrap thead th {
-      background: #1c1c1c;
+      background: #1a1a1a;
       color: var(--muted);
       text-align: right;
-      padding: 8px 10px;
+      padding: 9px 12px;
       font-weight: 600;
       text-transform: uppercase;
-      font-size: 0.72rem;
-      letter-spacing: 0.4px;
+      font-size: 0.7rem;
+      letter-spacing: 0.5px;
       white-space: nowrap;
+      position: sticky;
+      top: 0;
     }
-    .metrics-snapshot-wrap thead th:first-child { text-align: left; min-width: 180px; }
-    .metrics-snapshot-wrap tbody td { padding: 7px 10px; text-align: right; color: var(--text); border-bottom: 1px solid #252525; }
+    .metrics-snapshot-wrap thead th:first-child { text-align: left; min-width: 190px; }
+    .metrics-snapshot-wrap tbody td {
+      padding: 8px 12px;
+      text-align: right;
+      color: var(--text);
+      border-bottom: 1px solid #252525;
+    }
     .metrics-snapshot-wrap tbody td:first-child { text-align: left; color: #ddd; font-weight: 500; }
     .metrics-snapshot-wrap tbody tr:hover { background: #252525; }
-    .metrics-snapshot-wrap .row-exclusive-a td:first-child { border-left: 3px solid var(--gold); color: var(--gold); }
-    .metrics-snapshot-wrap .row-exclusive-b td:first-child { border-left: 3px solid var(--green); color: var(--green); }
-    .metrics-snapshot-wrap .row-shared td:first-child { border-left: 3px solid #444; }
+    .metrics-snapshot-wrap .row-exclusive-a td:first-child {
+      border-left: 3px solid var(--gold);
+      padding-left: 13px;
+      color: var(--gold);
+    }
+    .metrics-snapshot-wrap .row-exclusive-b td:first-child {
+      border-left: 3px solid var(--green);
+      padding-left: 13px;
+      color: var(--green);
+    }
+    .metrics-snapshot-wrap .row-shared td:first-child {
+      border-left: 3px solid #3a3a3a;
+      padding-left: 13px;
+    }
     .winner-a { color: var(--gold); font-weight: 700; }
     .winner-b { color: var(--green); font-weight: 700; }
-    .na-cell { color: #555; font-style: italic; }
-    .cagr-pos { color: #27ae60; }
+    .na-cell { color: #4a4a4a; font-style: italic; }
+    .cagr-pos { color: #2ecc71; }
     .cagr-neg { color: #e74c3c; }
-    .cagr-bar-wrap { margin-bottom: 20px; }
+    .cagr-bar-wrap {
+      margin-bottom: 24px;
+      background: #1c1c1c;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .cagr-bar-wrap .chart-sub { margin-bottom: 10px; }
 
     /* Responsive */
     @media (max-width: 1100px) {
@@ -310,6 +372,7 @@
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .row2 { grid-template-columns: 1fr; }
       .comparison-grid { grid-template-columns: 1fr; }
+      #forecastCompareGrid { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 600px) {
       .kpi-grid { grid-template-columns: 1fr 1fr; }
@@ -384,6 +447,7 @@
     </div>
     <button class="btn-simulate" id="btnSimulate" onclick="runPrediction()">Run Simulation</button>
     <button class="btn-simulate" id="btnCompare" onclick="showComparison()" style="background:var(--blue); color:#121212;">Compare</button>
+    <button class="btn-simulate" id="btnCloseCompare" onclick="closeComparison()" style="display:none; background:#333; color:#aaa; border:1px solid #555;">✕ Close Compare</button>
     <div class="badge-mc">Monte Carlo</div>
   </div>
 
@@ -480,15 +544,31 @@
       <div class="section-title">Full Metrics Snapshot</div>
       <div class="chart-sub">All financial metrics across both companies — latest year values, total growth, and CAGR</div>
       <div class="cagr-bar-wrap">
-        <div class="chart-sub" style="margin-bottom:8px;">CAGR comparison for shared metrics (%)</div>
+        <div class="chart-sub">CAGR comparison for shared metrics (%)</div>
         <div class="chart-wrap"><canvas id="comparisonBarChart" height="220"></canvas></div>
       </div>
       <div class="metrics-snapshot-wrap" id="metricsSnapshotTable"></div>
     </div>
+
+    <!-- Forecast comparison -->
+    <div class="all-metrics-section" id="forecastCompareSection" style="display:none;">
+      <div class="section-title">Forecast Comparison</div>
+      <div class="chart-sub" id="forecastCompareSub">Monte Carlo forecasts on the selected shared metric</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px;" id="forecastCompareGrid">
+        <div class="cagr-bar-wrap">
+          <div class="chart-sub" id="compDistSub">Final-year distribution</div>
+          <div class="chart-wrap"><canvas id="compDistChart" height="260"></canvas></div>
+        </div>
+        <div class="cagr-bar-wrap">
+          <div class="chart-sub">Forecast uncertainty by year (std dev)</div>
+          <div class="chart-wrap"><canvas id="compStdChart" height="260"></canvas></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Main chart + distribution -->
-  <div class="charts-grid">
+  <div class="charts-grid" id="chartsGrid">
     <div class="chart-card">
       <div class="chart-title">Historical + Monte Carlo Forecast
         <span style="background:rgba(255,188,13,0.15); border:1px solid var(--gold); color:var(--gold); border-radius:5px; padding:2px 8px; font-size:0.7rem;">PREDICTION</span>
@@ -510,7 +590,7 @@
   </div>
 
   <!-- MC paths + year-by-year uncertainty -->
-  <div class="row2">
+  <div class="row2" id="mcPathsRow">
     <div class="chart-card">
       <div class="chart-title">Monte Carlo Simulation Paths</div>
       <div class="chart-sub">80 random paths sampled from all simulations</div>
@@ -545,7 +625,7 @@
 
   // ---- State ----
   let mainChart, distChart, pathsChart, stdChart;
-  let comparisonChart, comparisonBarChart;
+  let comparisonChart, comparisonBarChart, compDistChart, compStdChart;
   let currentData = null;
 
   // ---- Helpers ----
@@ -582,10 +662,25 @@
     document.getElementById('tableSub').textContent = `${dataset.label} historical data — all years`;
   }
 
+  function updateDatasetTheme(datasetKey) {
+    const body = document.body;
+    const logo = document.querySelector('.logo');
+    if (datasetKey === 'sbux') {
+      body.classList.add('theme-sbux');
+      body.classList.remove('theme-mcd');
+      logo.textContent = 'S';
+    } else {
+      body.classList.remove('theme-sbux');
+      body.classList.add('theme-mcd');
+      logo.textContent = 'M';
+    }
+  }
+
   async function onDatasetChange() {
     currentDataset = document.getElementById('datasetSelect').value;
     populateMetricOptions(currentDataset);
     updateDatasetHeader(currentDataset);
+    updateDatasetTheme(currentDataset);
     await refreshDashboard();
   }
 
@@ -651,26 +746,51 @@
   // ---- Comparative analysis ----
   async function loadComparison() {
     const metricSelect = document.getElementById('comparisonMetricSelect');
-    if (!metricSelect || metricSelect.options.length === 0) {
-      return;
-    }
+    if (!metricSelect || metricSelect.options.length === 0) return;
 
     const metric = metricSelect.value || metricSelect.options[0].value;
-    const res = await fetch(`/api/comparison?metric=${encodeURIComponent(metric)}`);
-    const data = await res.json();
-    renderComparison(data);
+    const nFuture = Math.min(parseInt(document.getElementById('nFuture').value) || 5, 15);
+    const nSim = Math.min(parseInt(document.getElementById('nSim').value) || 1000, 1000);
+    const noisePct = (parseFloat(document.getElementById('noisePct').value) || 5) / 100;
+
+    showLoading('Loading comparison + forecasts...');
+    try {
+      const [compData, forecastA, forecastB] = await Promise.all([
+        fetch(`/api/comparison?metric=${encodeURIComponent(metric)}`).then(r => r.json()),
+        fetch(`/api/predict?dataset=mcd&metric=${encodeURIComponent(metric)}&n_future=${nFuture}&n_simulations=${nSim}&noise_pct=${noisePct}`).then(r => r.json()),
+        fetch(`/api/predict?dataset=sbux&metric=${encodeURIComponent(metric)}&n_future=${nFuture}&n_simulations=${nSim}&noise_pct=${noisePct}`).then(r => r.json()),
+      ]);
+      renderComparison(compData, forecastA, forecastB);
+    } finally {
+      hideLoading();
+    }
   }
 
   async function showComparison() {
     const panel = document.querySelector('.comparison-panel');
     panel.classList.add('active');
+    document.getElementById('chartsGrid').style.display = 'none';
+    document.getElementById('mcPathsRow').style.display = 'none';
     document.getElementById('btnCompare').textContent = 'Refresh Comparison';
+    document.getElementById('btnCloseCompare').style.display = '';
     await loadComparison();
   }
 
-  function renderComparison(data) {
+  function closeComparison() {
+    document.querySelector('.comparison-panel').classList.remove('active');
+    document.getElementById('chartsGrid').style.display = '';
+    document.getElementById('mcPathsRow').style.display = '';
+    document.getElementById('btnCompare').textContent = 'Compare';
+    document.getElementById('btnCloseCompare').style.display = 'none';
+    destroyChart(compDistChart);
+    destroyChart(compStdChart);
+  }
+
+  function renderComparison(data, forecastA, forecastB) {
     destroyChart(comparisonChart);
     destroyChart(comparisonBarChart);
+    destroyChart(compDistChart);
+    destroyChart(compStdChart);
 
     const labels = (data.labels || []).map(String);
     const summary = data.summary || {};
@@ -929,6 +1049,133 @@
         <span style="border-left:3px solid var(--green); padding-left:6px;">${labelB} only</span>
       </div>
     `;
+
+    // ── Forecast comparison charts ─────────────────────────────────────────
+    if (forecastA && forecastB) {
+      document.getElementById('forecastCompareSection').style.display = 'block';
+      document.getElementById('forecastCompareSub').textContent =
+        `Monte Carlo forecasts (${forecastA.n_simulations} simulations) — ${data.metric}`;
+
+      // Final-year distribution: overlaid histograms
+      const buildBins = (vals, n = 24) => {
+        const mn = Math.min(...vals), mx = Math.max(...vals);
+        const step = (mx - mn) / n || 1;
+        const bins = Array(n).fill(0);
+        const labels = [];
+        for (let i = 0; i < n; i++) labels.push(fmt(mn + i * step, 1));
+        vals.forEach(v => { const bi = Math.min(Math.floor((v - mn) / step), n - 1); bins[bi]++; });
+        return { bins, labels, mn, step };
+      };
+
+      const distValsA = forecastA.final_year_dist;
+      const distValsB = forecastB.final_year_dist;
+      const allDist = [...distValsA, ...distValsB];
+      const globalMn = Math.min(...allDist), globalMx = Math.max(...allDist);
+      const N_BINS = 24;
+      const step = (globalMx - globalMn) / N_BINS || 1;
+      const binLabels = Array.from({length: N_BINS}, (_, i) => fmt(globalMn + i * step, 1));
+      const buildGlobalBins = vals => {
+        const bins = Array(N_BINS).fill(0);
+        vals.forEach(v => { const bi = Math.min(Math.floor((v - globalMn) / step), N_BINS - 1); bins[bi]++; });
+        return bins;
+      };
+
+      const lastYear = forecastA.future_years[forecastA.future_years.length - 1];
+      const meanA = distValsA.reduce((a,b) => a+b, 0) / distValsA.length;
+      const meanB = distValsB.reduce((a,b) => a+b, 0) / distValsB.length;
+      document.getElementById('compDistSub').textContent =
+        `${lastYear} — ${labelA} mean: ${fmt(meanA)}B · ${labelB} mean: ${fmt(meanB)}B`;
+
+      compDistChart = new Chart(document.getElementById('compDistChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: binLabels,
+          datasets: [
+            {
+              label: labelA,
+              data: buildGlobalBins(distValsA),
+              backgroundColor: 'rgba(255,188,13,0.55)',
+              borderColor: '#ffbc0d',
+              borderWidth: 1,
+            },
+            {
+              label: labelB,
+              data: buildGlobalBins(distValsB),
+              backgroundColor: 'rgba(39,174,96,0.55)',
+              borderColor: '#27ae60',
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { color: '#aaa', font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: '#1e1e1e', borderColor: '#3a3a3a', borderWidth: 1,
+              titleColor: '#ffbc0d', bodyColor: '#e0e0e0',
+              callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} sims` },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#666', font: { size: 9 }, maxRotation: 45 } },
+            y: {
+              grid: { color: '#252525' },
+              ticks: { color: '#888', font: { size: 10 } },
+              title: { display: true, text: 'Count', color: '#666', font: { size: 10 } },
+            },
+          },
+        },
+      });
+
+      // Forecast uncertainty by year: grouped bar (std dev)
+      const stdYears = forecastA.future_years.map(String);
+      compStdChart = new Chart(document.getElementById('compStdChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: stdYears,
+          datasets: [
+            {
+              label: labelA,
+              data: forecastA.std.map(v => parseFloat(fmt(v, 3))),
+              backgroundColor: 'rgba(255,188,13,0.7)',
+              borderColor: '#ffbc0d',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              label: labelB,
+              data: forecastB.std.map(v => parseFloat(fmt(v, 3))),
+              backgroundColor: 'rgba(39,174,96,0.7)',
+              borderColor: '#27ae60',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { color: '#aaa', font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: '#1e1e1e', borderColor: '#3a3a3a', borderWidth: 1,
+              titleColor: '#ffbc0d', bodyColor: '#e0e0e0',
+              callbacks: { label: ctx => ` ${ctx.dataset.label}: ±${fmt(ctx.parsed.y, 3)}B` },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 } } },
+            y: {
+              grid: { color: '#252525' },
+              ticks: { color: '#888', font: { size: 10 } },
+              title: { display: true, text: 'Std Dev ($B)', color: '#666', font: { size: 10 } },
+            },
+          },
+        },
+      });
+    }
   }
 
   function drawHeatmap(labels, matrix) {
