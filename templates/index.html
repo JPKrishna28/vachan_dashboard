@@ -266,6 +266,44 @@
     }
     .comparison-table { margin-top: 16px; }
 
+    /* All-metrics snapshot */
+    .all-metrics-section { margin-top: 24px; }
+    .all-metrics-section .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+    .all-metrics-section .chart-sub { margin-bottom: 14px; }
+    .metrics-snapshot-wrap { overflow-x: auto; }
+    .metrics-snapshot-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .metrics-snapshot-wrap thead th {
+      background: #1c1c1c;
+      color: var(--muted);
+      text-align: right;
+      padding: 8px 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    .metrics-snapshot-wrap thead th:first-child { text-align: left; min-width: 180px; }
+    .metrics-snapshot-wrap tbody td { padding: 7px 10px; text-align: right; color: var(--text); border-bottom: 1px solid #252525; }
+    .metrics-snapshot-wrap tbody td:first-child { text-align: left; color: #ddd; font-weight: 500; }
+    .metrics-snapshot-wrap tbody tr:hover { background: #252525; }
+    .metrics-snapshot-wrap .row-exclusive-a td:first-child { border-left: 3px solid var(--gold); color: var(--gold); }
+    .metrics-snapshot-wrap .row-exclusive-b td:first-child { border-left: 3px solid var(--green); color: var(--green); }
+    .metrics-snapshot-wrap .row-shared td:first-child { border-left: 3px solid #444; }
+    .winner-a { color: var(--gold); font-weight: 700; }
+    .winner-b { color: var(--green); font-weight: 700; }
+    .na-cell { color: #555; font-style: italic; }
+    .cagr-pos { color: #27ae60; }
+    .cagr-neg { color: #e74c3c; }
+    .cagr-bar-wrap { margin-bottom: 20px; }
+
     /* Responsive */
     @media (max-width: 1100px) {
       .charts-grid { grid-template-columns: 1fr; }
@@ -436,6 +474,17 @@
       <div class="chart-sub" id="comparisonTableSub">Year-by-year comparison across the shared period</div>
       <div class="table-wrap" id="comparisonTable"></div>
     </div>
+
+    <!-- All-metrics snapshot -->
+    <div class="all-metrics-section" id="allMetricsSection" style="display:none;">
+      <div class="section-title">Full Metrics Snapshot</div>
+      <div class="chart-sub">All financial metrics across both companies — latest year values, total growth, and CAGR</div>
+      <div class="cagr-bar-wrap">
+        <div class="chart-sub" style="margin-bottom:8px;">CAGR comparison for shared metrics (%)</div>
+        <div class="chart-wrap"><canvas id="comparisonBarChart" height="220"></canvas></div>
+      </div>
+      <div class="metrics-snapshot-wrap" id="metricsSnapshotTable"></div>
+    </div>
   </div>
 
   <!-- Main chart + distribution -->
@@ -496,7 +545,7 @@
 
   // ---- State ----
   let mainChart, distChart, pathsChart, stdChart;
-  let comparisonChart;
+  let comparisonChart, comparisonBarChart;
   let currentData = null;
 
   // ---- Helpers ----
@@ -621,40 +670,47 @@
 
   function renderComparison(data) {
     destroyChart(comparisonChart);
+    destroyChart(comparisonBarChart);
 
     const labels = (data.labels || []).map(String);
     const summary = data.summary || {};
+    const labelA = data.label_a || 'McDonald\'s';
+    const labelB = data.label_b || 'Starbucks';
     const chartEl = document.getElementById('comparisonChart');
     const ctx = chartEl.getContext('2d');
 
     document.getElementById('comparisonSub').textContent =
       `Shared period ${summary.first_year ?? '—'}–${summary.last_year ?? '—'} | ${data.metric || 'Shared metric'}`;
 
-    const formatValue = value => `${fmt(value)}B`;
+    // Summary cards — show total metric count context
+    const allMetrics = data.all_metrics || [];
+    const sharedCount = allMetrics.filter(m => m.shared).length;
+    const onlyACount = allMetrics.filter(m => m.exclusive_a).length;
+    const onlyBCount = allMetrics.filter(m => m.exclusive_b).length;
 
     const cards = [
       {
-        label: data.label_a || 'McDonald\'s',
-        value: formatValue(summary.latest_a),
-        sub: `Latest value in ${summary.last_year ?? '—'}`,
+        label: labelA,
+        value: `${fmt(summary.latest_a)}B`,
+        sub: `${data.metric} in ${summary.last_year ?? '—'} | Growth: ${fmt(summary.growth_a, 1)}%`,
         accent: 'var(--gold)',
       },
       {
-        label: data.label_b || 'Starbucks',
-        value: formatValue(summary.latest_b),
-        sub: `Latest value in ${summary.last_year ?? '—'}`,
+        label: labelB,
+        value: `${fmt(summary.latest_b)}B`,
+        sub: `${data.metric} in ${summary.last_year ?? '—'} | Growth: ${fmt(summary.growth_b, 1)}%`,
         accent: 'var(--green)',
       },
       {
         label: 'Latest gap',
-        value: formatValue(summary.latest_gap),
-        sub: `${fmt(summary.latest_gap_pct, 2)}% vs ${data.label_b || 'Starbucks'}`,
+        value: `${fmt(summary.latest_gap)}B`,
+        sub: `${fmt(summary.latest_gap_pct, 2)}% vs ${labelB}`,
         accent: 'var(--blue)',
       },
       {
-        label: 'Growth since first shared year',
-        value: `${fmt(summary.growth_a, 1)}% / ${fmt(summary.growth_b, 1)}%`,
-        sub: `${summary.first_year ?? '—'} to ${summary.last_year ?? '—'}`,
+        label: 'Metrics coverage',
+        value: `${allMetrics.length} total`,
+        sub: `${sharedCount} shared · ${onlyACount} only ${labelA} · ${onlyBCount} only ${labelB}`,
         accent: 'var(--red)',
       },
     ];
@@ -667,13 +723,14 @@
       </div>
     `).join('');
 
+    // Trend line chart for selected metric
     comparisonChart = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
         datasets: [
           {
-            label: data.label_a || 'McDonald\'s',
+            label: labelA,
             data: data.series_a || [],
             borderColor: '#ffbc0d',
             backgroundColor: 'rgba(255,188,13,0.08)',
@@ -683,7 +740,7 @@
             tension: 0.25,
           },
           {
-            label: data.label_b || 'Starbucks',
+            label: labelB,
             data: data.series_b || [],
             borderColor: '#27ae60',
             backgroundColor: 'rgba(39,174,96,0.08)',
@@ -711,10 +768,7 @@
           },
         },
         scales: {
-          x: {
-            grid: { color: '#252525' },
-            ticks: { color: '#888', font: { size: 11 } },
-          },
+          x: { grid: { color: '#252525' }, ticks: { color: '#888', font: { size: 11 } } },
           y: {
             grid: { color: '#252525' },
             ticks: { color: '#888', font: { size: 11 } },
@@ -725,7 +779,7 @@
     });
 
     document.getElementById('comparisonTableSub').textContent =
-      `${data.metric || 'Shared metric'} across the shared period`;
+      `${data.metric || 'Shared metric'} — year-by-year across the shared period`;
 
     const tableRows = (data.rows || []).map(row => `
       <tr>
@@ -742,14 +796,138 @@
         <thead>
           <tr>
             <th>Year</th>
-            <th>${data.label_a || 'McDonald\'s'}</th>
-            <th>${data.label_b || 'Starbucks'}</th>
+            <th>${labelA}</th>
+            <th>${labelB}</th>
             <th>Gap</th>
             <th>Gap %</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
       </table>
+    `;
+
+    // ── All-metrics snapshot ──────────────────────────────────────────────
+    if (allMetrics.length === 0) return;
+
+    document.getElementById('allMetricsSection').style.display = 'block';
+
+    // CAGR grouped bar chart for shared metrics
+    const sharedMetrics = allMetrics.filter(m => m.shared && m.cagr_a != null && m.cagr_b != null);
+    if (sharedMetrics.length > 0) {
+      const barLabels = sharedMetrics.map(m => m.metric.replace(' ($B)', '').replace(' (%)', '').replace(' ($)', ''));
+      const barCtx = document.getElementById('comparisonBarChart').getContext('2d');
+      comparisonBarChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: barLabels,
+          datasets: [
+            {
+              label: labelA,
+              data: sharedMetrics.map(m => m.cagr_a),
+              backgroundColor: 'rgba(255,188,13,0.75)',
+              borderColor: '#ffbc0d',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              label: labelB,
+              data: sharedMetrics.map(m => m.cagr_b),
+              backgroundColor: 'rgba(39,174,96,0.75)',
+              borderColor: '#27ae60',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: { color: '#aaa', font: { size: 11 } },
+            },
+            tooltip: {
+              backgroundColor: '#1e1e1e',
+              borderColor: '#3a3a3a',
+              borderWidth: 1,
+              titleColor: '#ffbc0d',
+              bodyColor: '#e0e0e0',
+              callbacks: {
+                label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y, 2)}% CAGR`,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { color: '#252525' }, ticks: { color: '#888', font: { size: 10 } } },
+            y: {
+              grid: { color: '#252525' },
+              ticks: { color: '#888', font: { size: 11 }, callback: v => `${v}%` },
+              title: { display: true, text: 'CAGR (%)', color: '#666', font: { size: 11 } },
+            },
+          },
+        },
+      });
+    }
+
+    // Full metrics table
+    const fmtVal = (v, m) => {
+      if (v == null) return '<span class="na-cell">N/A</span>';
+      const unit = m.includes('(%)') ? '%' : (m.includes('($)') ? '' : 'B');
+      return `${fmt(v)}${unit}`;
+    };
+    const fmtCagr = v => {
+      if (v == null) return '<span class="na-cell">—</span>';
+      const cls = v >= 0 ? 'cagr-pos' : 'cagr-neg';
+      return `<span class="${cls}">${v >= 0 ? '+' : ''}${fmt(v, 2)}%</span>`;
+    };
+    const fmtGrowth = v => {
+      if (v == null) return '<span class="na-cell">—</span>';
+      const cls = v >= 0 ? 'cagr-pos' : 'cagr-neg';
+      return `<span class="${cls}">${v >= 0 ? '+' : ''}${fmt(v, 1)}%</span>`;
+    };
+    const winnerCell = (m) => {
+      if (m.val_a == null || m.val_b == null) return '<span class="na-cell">—</span>';
+      if (m.val_a > m.val_b) return `<span class="winner-a">${labelA}</span>`;
+      if (m.val_b > m.val_a) return `<span class="winner-b">${labelB}</span>`;
+      return 'Tie';
+    };
+
+    const snapshotRows = allMetrics.map(m => {
+      const rowClass = m.shared ? 'row-shared' : (m.exclusive_a ? 'row-exclusive-a' : 'row-exclusive-b');
+      return `
+        <tr class="${rowClass}">
+          <td>${m.metric}</td>
+          <td>${fmtVal(m.val_a, m.metric)}</td>
+          <td>${fmtVal(m.val_b, m.metric)}</td>
+          <td>${fmtCagr(m.cagr_a)}</td>
+          <td>${fmtCagr(m.cagr_b)}</td>
+          <td>${fmtGrowth(m.growth_a)}</td>
+          <td>${fmtGrowth(m.growth_b)}</td>
+          <td>${winnerCell(m)}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('metricsSnapshotTable').innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;">Metric</th>
+            <th>${labelA} Latest</th>
+            <th>${labelB} Latest</th>
+            <th>${labelA} CAGR</th>
+            <th>${labelB} CAGR</th>
+            <th>${labelA} Growth</th>
+            <th>${labelB} Growth</th>
+            <th>Higher</th>
+          </tr>
+        </thead>
+        <tbody>${snapshotRows}</tbody>
+      </table>
+      <div style="margin-top:10px; font-size:0.74rem; color:var(--muted);">
+        <span style="border-left:3px solid #444; padding-left:6px; margin-right:16px;">Shared metric</span>
+        <span style="border-left:3px solid var(--gold); padding-left:6px; margin-right:16px;">${labelA} only</span>
+        <span style="border-left:3px solid var(--green); padding-left:6px;">${labelB} only</span>
+      </div>
     `;
   }
 

@@ -405,6 +405,62 @@ def comparison():
             }
         )
 
+    # All-metrics snapshot: every metric from either dataset
+    metrics_set_a = set(dataset_a["metrics"])
+    metrics_set_b = set(dataset_b["metrics"])
+    all_metric_names = sorted(metrics_set_a | metrics_set_b)
+    frame_a_full = dataset_a["frame"]
+    frame_b_full = dataset_b["frame"]
+
+    all_metrics_data = []
+    for m in all_metric_names:
+        has_a = m in metrics_set_a and m in frame_a_full.columns
+        has_b = m in metrics_set_b and m in frame_b_full.columns
+
+        m_val_a = m_cagr_a = m_growth_a = m_year_a = None
+        m_val_b = m_cagr_b = m_growth_b = m_year_b = None
+
+        if has_a:
+            m_first_a = float(frame_a_full[m].iloc[0])
+            m_last_a = float(frame_a_full[m].iloc[-1])
+            m_nyrs_a = len(frame_a_full) - 1
+            m_val_a = round(m_last_a, 3)
+            m_year_a = int(frame_a_full["Year"].iloc[-1])
+            if m_first_a != 0 and m_nyrs_a > 0:
+                m_cagr_a = round(
+                    ((abs(m_last_a) / abs(m_first_a)) ** (1.0 / m_nyrs_a) - 1) * 100, 2
+                )
+                m_growth_a = round(((m_last_a - m_first_a) / abs(m_first_a)) * 100, 2)
+
+        if has_b:
+            m_first_b = float(frame_b_full[m].iloc[0])
+            m_last_b = float(frame_b_full[m].iloc[-1])
+            m_nyrs_b = len(frame_b_full) - 1
+            m_val_b = round(m_last_b, 3)
+            m_year_b = int(frame_b_full["Year"].iloc[-1])
+            if m_first_b != 0 and m_nyrs_b > 0:
+                m_cagr_b = round(
+                    ((abs(m_last_b) / abs(m_first_b)) ** (1.0 / m_nyrs_b) - 1) * 100, 2
+                )
+                m_growth_b = round(((m_last_b - m_first_b) / abs(m_first_b)) * 100, 2)
+
+        all_metrics_data.append(
+            {
+                "metric": m,
+                "val_a": m_val_a,
+                "val_b": m_val_b,
+                "cagr_a": m_cagr_a,
+                "cagr_b": m_cagr_b,
+                "growth_a": m_growth_a,
+                "growth_b": m_growth_b,
+                "year_a": m_year_a,
+                "year_b": m_year_b,
+                "shared": has_a and has_b,
+                "exclusive_a": has_a and not has_b,
+                "exclusive_b": not has_a and has_b,
+            }
+        )
+
     return jsonify(
         {
             "metric": metric,
@@ -418,6 +474,7 @@ def comparison():
             "normalized_a": [round(float(v), 3) for v in normalized_a],
             "normalized_b": [round(float(v), 3) for v in normalized_b],
             "rows": rows,
+            "all_metrics": all_metrics_data,
             "summary": {
                 "first_year": first_year,
                 "last_year": last_year,
